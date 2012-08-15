@@ -19,7 +19,8 @@ find_package(LLVM COMPONENTS X86AsmParser X86Disassembler X86CodeGen SelectionDA
 
 include_directories(${LLVM_INCLUDE_DIRS})
 
-set(SRC llvm-test_add.cpp)
-
-add_executable(llvm-test_add ${SRC})
+add_executable(llvm-test_add llvm-test_add.cpp)
 target_link_libraries(llvm-test_add ${LLVM_LIBRARIES})
+
+add_executable(llvm-test_struct llvm-test_struct.cpp)
+target_link_libraries(llvm-test_struct ${LLVM_LIBRARIES})
