@@ -24,3 +24,6 @@ message(${LLVM_LIBRARIES})
 
 add_executable(llvm-test_struct llvm-test_struct.cpp)
 target_link_libraries(llvm-test_struct ${LLVM_LIBRARIES})
+
+add_executable(llvm-test_emu-and-jit llvm-test_emu-and-jit.cpp)
+target_link_libraries(llvm-test_emu-and-jit ${LLVM_LIBRARIES})

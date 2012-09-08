@@ -14,6 +14,9 @@
 #include <llvm/Type.h>
 #include <llvm/DerivedTypes.h>
 
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetData.h>
+
 #include "llvm/ExecutionEngine/JIT.h"
 
 using namespace llvm;
@@ -36,12 +39,18 @@ int main(void)
     ExecutionEngine *pExecutionEngine = EngineBuilder(pModule).setErrorStr(&ErrStr).create();
     if (pExecutionEngine == nullptr) throw ErrStr;
 
+    TargetData CurTargetData(pModule);
+
     std::vector<Type *> StructField;
     for (auto i = 0; i < 10; ++i) StructField.push_back(IntegerType::get(rCtxt, 32));
 
     StructType   *pStructType          = StructType::create(StructField, "CpuContext");
     PointerType  *pCpuContextStructPtr = PointerType::get(pStructType, 0);
     FunctionType *pFuncType            = FunctionType::get(Type::getVoidTy(rCtxt), pCpuContextStructPtr, false);
+
+    auto pStructLayout = CurTargetData.getStructLayout(pStructType);
+
+    std::cout << "Struct size, code: " << std::hex << 4 * 10 << ", llvm: " << pStructLayout->getSizeInBytes() << std::endl;
 
     auto pMemsetFunc = pModule->getFunction("memset");
     if (pMemsetFunc == nullptr)
@@ -61,11 +70,14 @@ int main(void)
     std::vector<Value *> MemsetParamsValue;
     MemsetParamsValue.push_back(pCastStructPtr);
     MemsetParamsValue.push_back(ConstantInt::get(rCtxt, APInt(32, 0x22)));
-    MemsetParamsValue.push_back(ConstantInt::get(rCtxt, APInt(32, 4 * 10))); /* WAT? we can't retrieve the size of a struct dynamically ? */
+    MemsetParamsValue.push_back(ConstantInt::get(rCtxt, APInt(32, pStructLayout->getSizeInBytes())));
     Builder.CreateCall(pMemsetFunc, MemsetParamsValue, "call_memset");
-    Builder.CreateGEP(pFunc->arg_begin(), ConstantInt::get(Type::getInt32Ty(rCtxt), 1));
-
-    Builder.CreateRetVoid();
+    auto pRet = Builder.CreateGEP(pFunc->arg_begin(), ConstantInt::get(Type::getInt32Ty(rCtxt), 1));
+    Builder.CreateStore(
+      ConstantInt::get(rCtxt, APInt(32, 0x11223344)),
+      Builder.CreateStructGEP(pFunc->arg_begin(), 1)
+    );
+    Builder.CreateRet(pRet);
 
     auto pJitFunction = (void (*)(CpuContext *))pExecutionEngine->getPointerToFunction(pFunc);
     pFunc->dump();
@@ -76,6 +88,7 @@ int main(void)
     std::cout << CpuCtxt.Reg[9] << std::endl;
     pJitFunction(&CpuCtxt);
     std::cout << CpuCtxt.Reg[9] << std::endl;
+    std::cout << CpuCtxt.Reg[1] << std::endl;
   }
   catch (std::exception const& rExcpt)
   {
