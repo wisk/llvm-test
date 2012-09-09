@@ -34,7 +34,6 @@ int main(void)
     FunctionParameters.push_back(Type::getInt32Ty(getGlobalContext()));
 
     FunctionType *pFunctionType = FunctionType::get(Type::getInt32Ty(getGlobalContext()), FunctionParameters, false);
-
     Function *pFunction = Function::Create(
       pFunctionType,
       Function::ExternalLinkage,
