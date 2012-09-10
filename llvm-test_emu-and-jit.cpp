@@ -51,21 +51,57 @@ public:
     MemoryContextObject pMemCtxtObj, ReadMemoryPtr   pMemRead, WriteMemoryPtr   pWriteMem
   );
 
+  LlvmJitter(void) : m_Builder(getGlobalContext())
+  {
+    InitializeNativeTarget();
+    LLVMContext &rCtxt = getGlobalContext();
+    std::string ErrStr;
+
+    if (sm_pModule          == nullptr) sm_pModule          = new Module("llvm-test_emu-and-jit", rCtxt);
+    if (sm_pExecutionEngine == nullptr) sm_pExecutionEngine = EngineBuilder(sm_pModule).setErrorStr(&ErrStr).create();
+    if (sm_pExecutionEngine == nullptr) throw ErrStr;
+    if (sm_pTargetData      == nullptr) sm_pTargetData      = new TargetData(sm_pModule);
+  }
+
   virtual bool GenerateCode(u8* pCode) = 0;
 
 protected:
+  IRBuilder<> m_Builder;
+  static Module* sm_pModule;
+  static ExecutionEngine* sm_pExecutionEngine;
+  static TargetData* sm_pTargetData;
 
 private:
 };
 
+Module*          LlvmJitter::sm_pModule          = nullptr;
+ExecutionEngine* LlvmJitter::sm_pExecutionEngine = nullptr;
+TargetData*      LlvmJitter::sm_pTargetData      = nullptr;
+
 /* based on 65816 arch */
-class MyLlvmJitter
+class MyLlvmJitter : public LlvmJitter
 {
 private:
   struct CpuContext
   {
-    u16 a, x, y;
-    u8 b, p;
+    u16
+      a,
+      x,
+      y;
+    u8
+      b,
+      p;
+
+    void Dump(std::ostream& os) const
+    {
+      os << std::hex
+        << " a: " << static_cast<int>(a)
+        << " b: " << static_cast<int>(b)
+        << " x: " << static_cast<int>(x)
+        << " y: " << static_cast<int>(y)
+        << " p: " << static_cast<int>(p)
+        << std::endl;
+    }
   };
 
   enum
@@ -74,18 +110,39 @@ private:
     REG_B,
     REG_X,
     REG_Y,
-    REP_P
+    REG_P
   };
 
   static void ReadRegister(void* pCpuCtxtObj, u32 Register, void* pData, u32 Size)
   {
     std::cout << __FUNCTION__ " called" << std::endl;
     auto pCpuCtxt = reinterpret_cast<CpuContext*>(pCpuCtxtObj);
+
+    switch (Register)
+    {
+    case REG_A: memcpy(pData, &pCpuCtxt->a, Size); break;
+    case REG_B: memcpy(pData, &pCpuCtxt->b, Size); break;
+    case REG_X: memcpy(pData, &pCpuCtxt->x, Size); break;
+    case REG_Y: memcpy(pData, &pCpuCtxt->y, Size); break;
+    case REG_P: memcpy(pData, &pCpuCtxt->p, Size); break;
+    default: assert(0 && "Unknown register!");
+    }
   }
 
   static void WriteRegister(void* pCpuCtxtObj, u32 Register, void const* pData, u32 Size)
   {
     std::cout << __FUNCTION__ " called" << std::endl;
+    auto pCpuCtxt = reinterpret_cast<CpuContext*>(pCpuCtxtObj);
+
+    switch (Register)
+    {
+    case REG_A: memcpy(&pCpuCtxt->a, pData, Size); break;
+    case REG_B: memcpy(&pCpuCtxt->b, pData, Size); break;
+    case REG_X: memcpy(&pCpuCtxt->x, pData, Size); break;
+    case REG_Y: memcpy(&pCpuCtxt->y, pData, Size); break;
+    case REG_P: memcpy(&pCpuCtxt->p, pData, Size); break;
+    default: assert(0 && "Unknown register!");
+    }
   }
 
   static void ReadMemory(void* pMemCtxtObj, void* pAddress, void* pData, u32 Size)
@@ -103,20 +160,10 @@ public:
   {
     try
     {
-      InitializeNativeTarget();
       LLVMContext &rCtxt = getGlobalContext();
-      IRBuilder<> Builder(rCtxt);
-      std::string ErrStr;
-
-      Module *pModule = new Module("llvm-test_emu-and-jit", rCtxt);
-      ExecutionEngine *pExecutionEngine = EngineBuilder(pModule).setErrorStr(&ErrStr).create();
-      if (pExecutionEngine == nullptr) throw ErrStr;
-
-      TargetData CurTargetData(pModule);
-
-      auto pVoidTy             = Type::getVoidTy(rCtxt);
-      auto pInt32Ty            = Type::getInt32Ty(rCtxt);
-      auto pVoidPtrTy          = Type::getInt8PtrTy(rCtxt);
+      auto pVoidTy       = Type::getVoidTy(rCtxt);
+      auto pInt32Ty      = Type::getInt32Ty(rCtxt);
+      auto pVoidPtrTy    = Type::getInt8PtrTy(rCtxt);
 
       std::vector<Type *> RegParams, MemParams, ExcParams;
 
@@ -142,13 +189,11 @@ public:
       ExcParams.push_back(pAccessMemFuncPtrTy);
       auto pExecFuncTy         = FunctionType::get(pVoidTy, ExcParams, false);
 
-      //auto pAccessRegFunc      = Function::Create(pAccessRegFuncTy, GlobalValue::ExternalLinkage, "access_register", pModule);
-      //auto pAccessMemFunc      = Function::Create(pAccessMemFuncTy, GlobalValue::ExternalLinkage, "access_memory",   pModule);
-      auto pExecFunc           = Function::Create(pExecFuncTy,      GlobalValue::ExternalLinkage, "execute",         pModule);
+      auto pExecFunc           = Function::Create(pExecFuncTy, GlobalValue::ExternalLinkage, "execute", sm_pModule);
 
       auto pBbEntry            = BasicBlock::Create(rCtxt, "entry", pExecFunc);
 
-      Builder.SetInsertPoint(pBbEntry);
+      m_Builder.SetInsertPoint(pBbEntry);
 
       auto itArg = pExecFunc->arg_begin();
       Value* pCpuCtxtObjVal = itArg++;
@@ -158,17 +203,20 @@ public:
       Value* pMemReadVal    = itArg++;
       Value* pMemWriteVal   = itArg++;
 
-      auto pRegAlloca = Builder.CreateAlloca(pInt32Ty);
-      auto pRegVal = Builder.CreateBitCast(pRegAlloca, pVoidPtrTy);
-      Builder.CreateCall4(pCpuReadVal, pCpuCtxtObjVal, ConstantInt::get(rCtxt, APInt(32, 0)), pRegVal, ConstantInt::get(rCtxt, APInt(32, 32)));
+      auto pRegA = GetRegister(pCpuReadVal, pCpuCtxtObjVal, REG_A);
+      SetRegister(pCpuWriteVal, pCpuCtxtObjVal, REG_X, pRegA);
 
-      Builder.CreateRetVoid();
-      auto pJitFunction = reinterpret_cast<LlvmJitter::ExecuteCodePtr>(pExecutionEngine->getPointerToFunction(pExecFunc));
+      m_Builder.CreateRetVoid();
+      auto pJitFunction = reinterpret_cast<LlvmJitter::ExecuteCodePtr>(sm_pExecutionEngine->getPointerToFunction(pExecFunc));
       pExecFunc->dump();
 
       CpuContext CpuCtxt;
+      memset(&CpuCtxt, 0x0, sizeof(CpuCtxt));
+      CpuCtxt.a = 0x1234;
 
+      CpuCtxt.Dump(std::cout);
       pJitFunction(&CpuCtxt, ReadRegister, WriteRegister, nullptr, ReadMemory, WriteMemory);
+      CpuCtxt.Dump(std::cout);
     }
     catch (std::exception const& rExcpt)
     {
@@ -180,6 +228,37 @@ public:
   }
 
 private:
+
+  Value* GetRegister(Value* pCpuReadVal, Value* pCpuCtxtObjVal, u32 Register)
+  {
+    u32 Size = 2;
+    LLVMContext &rCtxt = getGlobalContext();
+
+    if (Register == REG_B || Register == REG_P)
+      Size = 1;
+
+    auto pRegAlloca = m_Builder.CreateAlloca(Size == 1 ? Type::getInt8Ty(rCtxt) : Type::getInt16Ty(rCtxt));
+    auto pRegBuf    = m_Builder.CreateBitCast(pRegAlloca, Type::getInt8PtrTy(rCtxt));
+    auto pSzVal     = ConstantInt::get(getGlobalContext(), APInt(32, Size));
+    auto pRegVal    = ConstantInt::get(getGlobalContext(), APInt(32, Register));
+
+    m_Builder.CreateCall4(pCpuReadVal, pCpuCtxtObjVal, pRegVal, pRegBuf, pSzVal);
+    return pRegBuf;
+  }
+
+  void SetRegister(Value* pCpuWriteVal, Value* pCpuCtxtObjVal, u32 Register, Value* pNewValue)
+  {
+    u32 Size = 2;
+    LLVMContext &rCtxt = getGlobalContext();
+
+    if (Register == REG_B || Register == REG_P)
+      Size = 1;
+
+    auto pSzVal     = ConstantInt::get(getGlobalContext(), APInt(32, Size));
+    auto pRegVal    = ConstantInt::get(getGlobalContext(), APInt(32, Register));
+
+    m_Builder.CreateCall4(pCpuWriteVal, pCpuCtxtObjVal, pRegVal, pNewValue, pSzVal);
+  }
 };
 
 int main(void)
