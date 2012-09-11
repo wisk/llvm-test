@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(llvm-test)
 
+include_directories(${CMAKE_SOURCE_DIR})
 
 if(CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_CONFIGURATION_TYPES Debug Release)

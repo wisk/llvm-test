@@ -49,7 +49,7 @@ public:
   typedef void (*ExecuteCodePtr)(
     CpuContextObject    pCpuCtxtObj, ReadRegisterPtr pReadReg, WriteRegisterPtr pWriteReg,
     MemoryContextObject pMemCtxtObj, ReadMemoryPtr   pMemRead, WriteMemoryPtr   pWriteMem
-  );
+    );
 
   LlvmJitter(void) : m_Builder(getGlobalContext())
   {
@@ -63,7 +63,7 @@ public:
     if (sm_pTargetData      == nullptr) sm_pTargetData      = new TargetData(sm_pModule);
   }
 
-  virtual bool GenerateCode(u8* pCode) = 0;
+  virtual bool GenerateCode(u8 const* pCode, size_t SizeOfCode) = 0;
 
 protected:
   IRBuilder<> m_Builder;
@@ -156,7 +156,7 @@ private:
   }
 
 public:
-  virtual bool GenerateCode(u8* pCode)
+  virtual bool GenerateCode(u8 const* pCode, size_t SizeOfCode)
   {
     try
     {
@@ -203,16 +203,23 @@ public:
       Value* pMemReadVal    = itArg++;
       Value* pMemWriteVal   = itArg++;
 
-      auto pRegA = GetRegister(pCpuReadVal, pCpuCtxtObjVal, REG_A);
-      SetRegister(pCpuWriteVal, pCpuCtxtObjVal, REG_X, pRegA);
-
-      m_Builder.CreateRetVoid();
-      auto pJitFunction = reinterpret_cast<LlvmJitter::ExecuteCodePtr>(sm_pExecutionEngine->getPointerToFunction(pExecFunc));
-      pExecFunc->dump();
+      //auto pRegA = GetRegister(pCpuReadVal, pCpuCtxtObjVal, REG_A);
+      //SetRegister(pCpuWriteVal, pCpuCtxtObjVal, REG_X, pRegA);
 
       CpuContext CpuCtxt;
       memset(&CpuCtxt, 0x0, sizeof(CpuCtxt));
       CpuCtxt.a = 0x1234;
+
+      while (SizeOfCode--)
+        switch (*pCode++)
+      {
+#include "insn.ipp"
+      }
+
+      m_Builder.CreateRetVoid();
+      pExecFunc->dump();
+
+      auto pJitFunction = reinterpret_cast<LlvmJitter::ExecuteCodePtr>(sm_pExecutionEngine->getPointerToFunction(pExecFunc));
 
       CpuCtxt.Dump(std::cout);
       pJitFunction(&CpuCtxt, ReadRegister, WriteRegister, nullptr, ReadMemory, WriteMemory);
@@ -256,13 +263,32 @@ private:
 
     auto pSzVal     = ConstantInt::get(getGlobalContext(), APInt(32, Size));
     auto pRegVal    = ConstantInt::get(getGlobalContext(), APInt(32, Register));
-
     m_Builder.CreateCall4(pCpuWriteVal, pCpuCtxtObjVal, pRegVal, pNewValue, pSzVal);
+  }
+
+  void Add(Value* pCpuReadVal, Value* pCpuWriteVal, Value* pCpuCtxtObjVal, u32 Register, u16 Val)
+  {
+    auto pRegBuf = GetRegister(pCpuReadVal, pCpuCtxtObjVal, Register);
+    auto pRegPtr = m_Builder.CreateBitCast(pRegBuf, Type::getInt16PtrTy(getGlobalContext()));
+    auto pReg    = m_Builder.CreateLoad(pRegPtr, false);
+    auto pRes    = m_Builder.CreateAdd(pReg, ConstantInt::get(getGlobalContext(), APInt(16, Val)));
+    m_Builder.CreateStore(pRes, pRegPtr, false);
+    SetRegister(pCpuWriteVal, pCpuCtxtObjVal, Register, pRegBuf);
+  }
+
+  void Sub(Value* pCpuReadVal, Value* pCpuWriteVal, Value* pCpuCtxtObjVal, u32 Register, u16 Val)
+  {
+    auto pRegBuf = GetRegister(pCpuReadVal, pCpuCtxtObjVal, Register);
+    auto pRegPtr = m_Builder.CreateBitCast(pRegBuf, Type::getInt16PtrTy(getGlobalContext()));
+    auto pReg    = m_Builder.CreateLoad(pRegPtr, false);
+    auto pRes    = m_Builder.CreateSub(pReg, ConstantInt::get(getGlobalContext(), APInt(16, Val)));
+    auto pStoReg = m_Builder.CreateStore(pRes, pRegPtr, false);
+    SetRegister(pCpuWriteVal, pCpuCtxtObjVal, Register, pRegBuf);
   }
 };
 
 int main(void)
 {
   MyLlvmJitter Jit;
-  Jit.GenerateCode(nullptr);
+  Jit.GenerateCode(reinterpret_cast<u8 const*>("\xee\xce\xee"), 3); // ina dea ina
 }

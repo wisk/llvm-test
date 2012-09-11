@@ -265,7 +265,7 @@ for i in xrange(0x100):
 
     cur_oper = ''
 
-    print('case 0x%02x: // %s' % (i, cur_insn))
+    print 'case 0x%02x: /* %s */' % (i, cur_insn) + '',
 
     if 0:
         pass
@@ -274,31 +274,40 @@ for i in xrange(0x100):
         cur_oper = 'Break'
 
     elif cur_mnem == 'inc':
-        cur_oper = 'Increment'
+        cur_oper = 'Add'
+        cur_oprd += ',1'
 
     elif cur_mnem == 'dec':
-        cur_oper = 'Decrement'
+        cur_oper = 'Sub'
+        cur_oprd += ',1'
 
     elif cur_mnem == 'adc':
-        cur_oper = 'AddWithCarry'
+        pass
+        #cur_oper = 'AddWithCarry'
 
     elif cur_mnem == 'sbc':
-        cur_oper = 'SubWithBorrow'
+        pass
+        #cur_oper = 'SubWithBorrow'
 
     elif cur_mnem == 'cmp':
-        cur_oper = 'Compare'
+        pass
+        #cur_oper = 'Compare'
 
     elif cur_mnem == 'bit':
-        cur_oper = 'Bit'
+        pass
+        #cur_oper = 'Bit'
 
     elif cur_mnem == 'rts':
-        cur_oper = 'ReturnFromSub'
+        pass
+        #cur_oper = 'ReturnFromSub'
 
     elif cur_mnem == 'rtl':
-        cur_oper = 'ReturnFromSubLong'
+        pass
+        #cur_oper = 'ReturnFromSubLong'
 
     elif cur_mnem == 'rti':
-        cur_oper = 'ReturnFromInterrupt'
+        pass
+        #cur_oper = 'ReturnFromInterrupt'
 
     elif cur_mnem.startswith('ld'):
         cur_oper = 'Load'
@@ -309,29 +318,52 @@ for i in xrange(0x100):
         cur_oprd = cur_mnem[-1] + cur_oprd
 
     elif cur_mnem.startswith('cp'):
-        cur_oper = 'Compare'
-        cur_oprd = cur_mnem[-1] + cur_oprd
+        pass
+        #cur_oper = 'Compare'
+        #cur_oprd = cur_mnem[-1] + cur_oprd
 
     elif cur_mnem.startswith('or'):
         cur_oper = 'Or'
         cur_oprd = cur_mnem[-1] + cur_oprd
 
     elif cur_mnem.startswith('ph'):
-        cur_oper = 'Push'
-        cur_oprd = cur_mnem[-1] + cur_oprd
+        pass
+        #cur_oper = 'Push'
+        #cur_oprd = cur_mnem[-1] + cur_oprd
 
     elif cur_mnem.startswith('in'):
-        cur_oper = 'Increment'
-        cur_oprd = cur_mnem[-1] + cur_oprd
+        cur_oper = 'Add'
+        cur_oprd = cur_mnem[-1] + ',1'
 
     elif cur_mnem.startswith('de'):
-        cur_oper = 'Decrement'
-        cur_oprd = cur_mnem[-1] + cur_oprd
+        cur_oper = 'Sub'
+        cur_oprd = cur_mnem[-1] + ',1'
 
+    oprds = cur_oprd.split(',')
+    print ' /* %s */' % oprds + '',
+    named_oprds = []
+    #get_reg = 'GetRegister(pCpuReadVal, pCpuCtxtObjVal, %s)'
+
+    if len(oprds) == 2:
+        for oprd in oprds:
+            if oprd == 'a' or oprd == 'al':
+                named_oprds.append('REG_A')
+            elif oprd == 'b':
+                named_oprds.append('REG_B')
+            elif oprd == 'X':
+                named_oprds.append('REG_X')
+            elif oprd == 'Y':
+                named_oprds.append('REG_Y')
+            elif oprd == '1':
+                named_oprds.append('1')
+            else:
+                cur_oper = ''
+    else:
+        cur_oper = ''
 
     if len(cur_oper):
-        print('  %s(%s);' % (cur_oper, cur_oprd))
+        print '  %s(pCpuReadVal, pCpuWriteVal, pCpuCtxtObjVal, %s);' % (cur_oper, ', '.join(named_oprds)) + '',
     else:
-        print('  /* unhandled operation %s */' % cur_insn)
+        print '  /* unhandled operation %s */' % cur_insn + '',
 
     print('  break;')
