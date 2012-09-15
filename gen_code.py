@@ -265,6 +265,8 @@ for i in xrange(0x100):
 
     cur_oper = ''
 
+    args = None
+
     print 'case 0x%02x: /* %s */' % (i, cur_insn) + '',
 
     if 0:
@@ -327,32 +329,47 @@ for i in xrange(0x100):
         cur_oprd = cur_mnem[-1] + cur_oprd
 
     elif cur_mnem.startswith('ph'):
+        cur_oper = 'Push'
+        cur_oprd = cur_insn[-1]
+        args = [ 'pCpuReadVal', 'pCpuWriteVal', 'pCpuCtxtObjVal', 'pMemWriteVal', 'pMemCtxtObjVal' ]
+
+    elif cur_mnem.startswith('pl'):
         pass
-        #cur_oper = 'Push'
-        #cur_oprd = cur_mnem[-1] + cur_oprd
+        cur_oper = 'Pull'
+        cur_oprd = cur_insn[-1]
+        args = [ 'pCpuReadVal', 'pCpuWriteVal', 'pCpuCtxtObjVal', 'pMemReadVal', 'pMemCtxtObjVal' ]
 
     elif cur_mnem.startswith('in'):
         cur_oper = 'Add'
-        cur_oprd = cur_mnem[-1] + ',1'
+        cur_oprd = cur_insn[-1] + ',1'
+        args = [ 'pCpuReadVal', 'pCpuWriteVal', 'pCpuCtxtObjVal' ]
+
 
     elif cur_mnem.startswith('de'):
         cur_oper = 'Sub'
-        cur_oprd = cur_mnem[-1] + ',1'
+        cur_oprd = cur_insn[-1] + ',1'
+        args = [ 'pCpuReadVal', 'pCpuWriteVal', 'pCpuCtxtObjVal' ]
+
+
+    elif cur_mnem.startswith('t'):
+        cur_oper = 'Transfer'
+        cur_oprd = cur_insn[-2] + ',' + cur_insn[-1]
+        args = [ 'pCpuReadVal', 'pCpuWriteVal', 'pCpuCtxtObjVal' ]
 
     oprds = cur_oprd.split(',')
     print ' /* %s */' % oprds + '',
     named_oprds = []
-    #get_reg = 'GetRegister(pCpuReadVal, pCpuCtxtObjVal, %s)'
 
-    if len(oprds) == 2:
+    if len(oprds) >= 1:
         for oprd in oprds:
+            oprd = oprd.lower()
             if oprd == 'a' or oprd == 'al':
                 named_oprds.append('REG_A')
             elif oprd == 'b':
                 named_oprds.append('REG_B')
-            elif oprd == 'X':
+            elif oprd == 'x':
                 named_oprds.append('REG_X')
-            elif oprd == 'Y':
+            elif oprd == 'y':
                 named_oprds.append('REG_Y')
             elif oprd == '1':
                 named_oprds.append('1')
@@ -361,8 +378,11 @@ for i in xrange(0x100):
     else:
         cur_oper = ''
 
+    if args == None:
+        cur_oper = ''
+
     if len(cur_oper):
-        print '  %s(pCpuReadVal, pCpuWriteVal, pCpuCtxtObjVal, %s);' % (cur_oper, ', '.join(named_oprds)) + '',
+        print '  %s(%s, %s);' % (cur_oper, ', '.join(args), ', '.join(named_oprds)) + '',
     else:
         print '  /* unhandled operation %s */' % cur_insn + '',
 

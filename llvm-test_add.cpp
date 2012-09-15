@@ -6,7 +6,7 @@
 
 #include <llvm/Module.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include <llvm/Support/IRBuilder.h>
+#include <llvm/IRBuilder.h>
 
 #include <llvm/Function.h>
 #include <llvm/BasicBlock.h>

@@ -14,7 +14,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 
 # TODO: Specify default libs in FindLLVM.cmake ...
-find_package(LLVM COMPONENTS X86AsmParser X86Disassembler X86CodeGen SelectionDAG AsmPrinter MCParser X86Desc X86Info X86AsmPrinter X86Utils JIT RuntimeDyld ExecutionEngine CodeGen ScalarOpts InstCombine TransformUtils ipa ANalysis Target MC Object Core Support Interpreter REQUIRED)
+find_package(LLVM COMPONENTS X86AsmParser X86Disassembler X86CodeGen SelectionDAG AsmPrinter MCParser X86Desc X86Info X86AsmPrinter X86Utils JIT RuntimeDyld ExecutionEngine CodeGen ScalarOpts InstCombine TransformUtils ipa ANalysis Target MC Object Core Support Interpreter Linker REQUIRED)
 
 include_directories(${LLVM_INCLUDE_DIRS})
 
