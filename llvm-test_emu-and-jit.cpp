@@ -109,16 +109,40 @@ private:
       b,
       p;
 
+    enum Flags
+    {
+      CarryFlag    = 0x01,
+      ZeroFlag     = 0x02,
+      IrqDsbFlag   = 0x04,
+      DecimalFlag  = 0x08,
+      IdxRegSzFlag = 0x10,
+      AccRegSz     = 0x20,
+      OverflowFlag = 0x40,
+      NegativeFlag = 0x80
+    };
+
     void Dump(std::ostream& os) const
     {
+      std::string FlagsStr = "";
+      if (p & CarryFlag   ) FlagsStr += " C";
+      if (p & ZeroFlag    ) FlagsStr += " Z";
+      if (p & IrqDsbFlag  ) FlagsStr += " I";
+      if (p & DecimalFlag ) FlagsStr += " D";
+      if (p & IdxRegSzFlag) FlagsStr += " X";
+      if (p & AccRegSz    ) FlagsStr += " M";
+      if (p & OverflowFlag) FlagsStr += " V";
+      if (p & NegativeFlag) FlagsStr += " N";
+
       os << std::hex
         << " a: "  << static_cast<int>(a)
         << " b: "  << static_cast<int>(b)
         << " x: "  << static_cast<int>(x)
         << " y: "  << static_cast<int>(y)
-        << " p: "  << static_cast<int>(p)
+        << std::endl;
+      os
         << " pc: " << static_cast<int>(pc)
         << " sp: " << static_cast<int>(sp)
+        << " p:" << FlagsStr
         << std::endl;
     }
   };
@@ -321,25 +345,24 @@ private:
     m_Builder.CreateCall4(pMemWriteVal, pMemCtxtObjVal, pAddrVal, pMemBuf, pSzVal);
   }
 
-  void Add(Value* pCpuReadVal, Value* pCpuWriteVal, Value* pCpuCtxtObjVal, u32 Register, u16 Val)
-  {
-    auto pRegBuf = GetRegister(pCpuReadVal, pCpuCtxtObjVal, Register);
-    auto pRegPtr = m_Builder.CreateBitCast(pRegBuf, Type::getInt16PtrTy(getGlobalContext()));
-    auto pReg    = m_Builder.CreateLoad(pRegPtr, false);
-    auto pRes    = m_Builder.CreateAdd(pReg, ConstantInt::get(getGlobalContext(), APInt(16, Val)));
-    m_Builder.CreateStore(pRes, pRegPtr, false);
-    SetRegister(pCpuWriteVal, pCpuCtxtObjVal, Register, pRegBuf);
-  }
+#define DO_OPERATION(oper)\
+  void oper(Value* pCpuReadVal, Value* pCpuWriteVal, Value* pCpuCtxtObjVal, u32 Register, u16 Val)\
+  {\
+    LLVMContext &rCtxt = getGlobalContext();\
+    \
+    auto pRegBuf = GetRegister(pCpuReadVal, pCpuCtxtObjVal, Register);\
+    auto pRegPtr = m_Builder.CreateBitCast(pRegBuf, Type::getInt16PtrTy(rCtxt));\
+    auto pReg    = m_Builder.CreateLoad(pRegPtr, false);\
+    auto pRes    = m_Builder.Create##oper(pReg, ConstantInt::get(rCtxt, APInt(16, Val)));\
+    m_Builder.CreateStore(pRes, pRegPtr, false);\
+    SetRegister(pCpuWriteVal, pCpuCtxtObjVal, Register, pRegBuf);\
+  }\
 
-  void Sub(Value* pCpuReadVal, Value* pCpuWriteVal, Value* pCpuCtxtObjVal, u32 Register, u16 Val)
-  {
-    auto pRegBuf = GetRegister(pCpuReadVal, pCpuCtxtObjVal, Register);
-    auto pRegPtr = m_Builder.CreateBitCast(pRegBuf, Type::getInt16PtrTy(getGlobalContext()));
-    auto pReg    = m_Builder.CreateLoad(pRegPtr, false);
-    auto pRes    = m_Builder.CreateSub(pReg, ConstantInt::get(getGlobalContext(), APInt(16, Val)));
-    auto pStoReg = m_Builder.CreateStore(pRes, pRegPtr, false);
-    SetRegister(pCpuWriteVal, pCpuCtxtObjVal, Register, pRegBuf);
-  }
+  DO_OPERATION(Add)
+  DO_OPERATION(Sub)
+  DO_OPERATION(And)
+  DO_OPERATION(Or )
+  DO_OPERATION(Xor)
 
   void Transfer(Value* pCpuReadVal, Value* pCpuWriteVal, Value* pCpuCtxtObjVal, u32 SrcReg, u32 DstReg)
   {

@@ -10,21 +10,29 @@ if(CMAKE_CONFIGURATION_TYPES)
     "Reset the configurations to what we need" FORCE)
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+set(LLVM_ROOT $ENV{LLVM_BUILD_ROOT})
 
+if (NOT EXISTS ${LLVM_ROOT}/include/llvm)
+  message(FATAL_ERROR "LLVM_ROOT (${LLVM_ROOT}) is not a valid LLVM install")
+endif()
 
-# TODO: Specify default libs in FindLLVM.cmake ...
-find_package(LLVM COMPONENTS X86AsmParser X86Disassembler X86CodeGen SelectionDAG AsmPrinter MCParser X86Desc X86Info X86AsmPrinter X86Utils JIT RuntimeDyld ExecutionEngine CodeGen ScalarOpts InstCombine TransformUtils ipa ANalysis Target MC Object Core Support Interpreter Linker REQUIRED)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${LLVM_ROOT}/share/llvm/cmake")
+include(LLVMConfig)
 
 include_directories(${LLVM_INCLUDE_DIRS})
+link_directories(${LLVM_LIBRARY_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
+
+message(${LLVM_INCLUDE_DIRS})
+
+llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native)
+
 
 add_executable(llvm-test_add llvm-test_add.cpp)
-target_link_libraries(llvm-test_add ${LLVM_LIBRARIES})
-
-message(${LLVM_LIBRARIES})
+target_link_libraries(llvm-test_add ${REQ_LLVM_LIBRARIES})
 
 add_executable(llvm-test_struct llvm-test_struct.cpp)
-target_link_libraries(llvm-test_struct ${LLVM_LIBRARIES})
+target_link_libraries(llvm-test_struct ${REQ_LLVM_LIBRARIES})
 
 add_executable(llvm-test_emu-and-jit llvm-test_emu-and-jit.cpp)
-target_link_libraries(llvm-test_emu-and-jit ${LLVM_LIBRARIES})
+target_link_libraries(llvm-test_emu-and-jit ${REQ_LLVM_LIBRARIES})
