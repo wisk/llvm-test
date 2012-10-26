@@ -20,8 +20,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${LLVM_ROOT}/share/llvm/cmake")
 include(LLVMConfig)
 
 include_directories(${LLVM_INCLUDE_DIRS})
+
+message(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
+add_definitions(-std=c++11)
 
 message(${LLVM_INCLUDE_DIRS})
 

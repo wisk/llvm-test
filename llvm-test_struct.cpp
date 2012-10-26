@@ -15,7 +15,7 @@
 #include <llvm/DerivedTypes.h>
 
 #include <llvm/Target/TargetMachine.h>
-#include <llvm/Target/TargetData.h>
+#include <llvm/DataLayout.h>
 
 #include "llvm/ExecutionEngine/JIT.h"
 
@@ -39,7 +39,7 @@ int main(void)
     ExecutionEngine *pExecutionEngine = EngineBuilder(pModule).setErrorStr(&ErrStr).create();
     if (pExecutionEngine == nullptr) throw ErrStr;
 
-    TargetData CurTargetData(pModule);
+    DataLayout CurDataLayout(pModule);
 
     std::vector<Type *> StructField;
     for (auto i = 0; i < 10; ++i) StructField.push_back(IntegerType::get(rCtxt, 32));
@@ -48,7 +48,7 @@ int main(void)
     PointerType  *pCpuContextStructPtr = PointerType::get(pStructType, 0);
     FunctionType *pFuncType            = FunctionType::get(Type::getVoidTy(rCtxt), pCpuContextStructPtr, false);
 
-    auto pStructLayout = CurTargetData.getStructLayout(pStructType);
+    auto pStructLayout = CurDataLayout.getStructLayout(pStructType);
 
     std::cout << "Struct size, code: " << std::hex << 4 * 10 << ", llvm: " << pStructLayout->getSizeInBytes() << std::endl;
 

@@ -19,7 +19,7 @@
 #include <llvm/DerivedTypes.h>
 
 #include <llvm/Target/TargetMachine.h>
-#include <llvm/Target/TargetData.h>
+#include <llvm/DataLayout.h>
 
 #include "llvm/ExecutionEngine/JIT.h"
 
@@ -64,10 +64,10 @@ public:
     if (sm_pModule          == nullptr) sm_pModule          = new Module("llvm-test_emu-and-jit", rCtxt);
     if (sm_pExecutionEngine == nullptr) sm_pExecutionEngine = EngineBuilder(sm_pModule).setErrorStr(&ErrStr).create();
     if (sm_pExecutionEngine == nullptr) throw ErrStr;
-    if (sm_pTargetData      == nullptr) sm_pTargetData      = new TargetData(sm_pModule);
+    if (sm_pDataLayout      == nullptr) sm_pDataLayout      = new DataLayout(sm_pModule);
 
     FunctionPassManager FuncPassMgr(sm_pModule);
-    FuncPassMgr.add(new TargetData(*sm_pExecutionEngine->getTargetData()));
+    FuncPassMgr.add(new DataLayout(*sm_pExecutionEngine->getDataLayout()));
     FuncPassMgr.add(createBasicAliasAnalysisPass());
     FuncPassMgr.add(createInstructionCombiningPass());
     FuncPassMgr.add(createReassociatePass());
@@ -84,14 +84,14 @@ protected:
   IRBuilder<> m_Builder;
   static Module* sm_pModule;
   static ExecutionEngine* sm_pExecutionEngine;
-  static TargetData* sm_pTargetData;
+  static DataLayout* sm_pDataLayout;
 
 private:
 };
 
 Module*          LlvmJitter::sm_pModule          = nullptr;
 ExecutionEngine* LlvmJitter::sm_pExecutionEngine = nullptr;
-TargetData*      LlvmJitter::sm_pTargetData      = nullptr;
+DataLayout*      LlvmJitter::sm_pDataLayout      = nullptr;
 
 /* based on 65816 arch */
 class MyLlvmJitter : public LlvmJitter
@@ -160,7 +160,7 @@ private:
 
   static void ReadRegister(void* pCpuCtxtObj, u32 Register, void* pData, u32 Size)
   {
-    std::cout << __FUNCTION__ " called" << std::endl;
+    std::cout << __FUNCTION__ << " called" << std::endl;
     auto pCpuCtxt = reinterpret_cast<CpuContext*>(pCpuCtxtObj);
 
     switch (Register)
@@ -178,7 +178,7 @@ private:
 
   static void WriteRegister(void* pCpuCtxtObj, u32 Register, void const* pData, u32 Size)
   {
-    std::cout << __FUNCTION__ " called" << std::endl;
+    std::cout << __FUNCTION__ << " called" << std::endl;
     auto pCpuCtxt = reinterpret_cast<CpuContext*>(pCpuCtxtObj);
 
     switch (Register)
@@ -196,14 +196,14 @@ private:
 
   static void ReadMemory(void* pMemCtxtObj, void* pAddress, void* pData, u32 Size)
   {
-    std::cout << __FUNCTION__ " called: Address: " << pAddress << ", Data: " << pData << ", Size: " << Size << std::endl;
+    std::cout << __FUNCTION__ << " called: Address: " << pAddress << ", Data: " << pData << ", Size: " << Size << std::endl;
 
     memset(pData, 0xbb, Size);
   }
 
   static void WriteMemory(void* pMemCtxtObj, void* pAddress, void const* pData, u32 Size)
   {
-    std::cout << __FUNCTION__ " called: Address: " << pAddress << ", Data: " << pData << ", Size: " << Size << std::endl;
+    std::cout << __FUNCTION__ << " called: Address: " << pAddress << ", Data: " << pData << ", Size: " << Size << std::endl;
   }
 
 public:
