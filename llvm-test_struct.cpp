@@ -3,20 +3,17 @@
 #include <exception>
 
 #include <llvm/Support/TargetSelect.h>
-#include <llvm/LLVMContext.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Type.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/DataLayout.h>
 
-#include <llvm/Module.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include <llvm/IRBuilder.h>
-
-#include <llvm/Function.h>
-#include <llvm/BasicBlock.h>
-#include <llvm/Type.h>
-#include <llvm/DerivedTypes.h>
-
 #include <llvm/Target/TargetMachine.h>
-#include <llvm/DataLayout.h>
-
 #include "llvm/ExecutionEngine/JIT.h"
 
 using namespace llvm;
