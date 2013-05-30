@@ -11,7 +11,7 @@
 #include <llvm/IR/DerivedTypes.h>
 
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include "llvm/ExecutionEngine/JIT.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
 
 using namespace llvm;
 
@@ -20,11 +20,12 @@ int main(void)
   try
   {
     InitializeNativeTarget();
+    InitializeNativeTargetAsmPrinter();
     IRBuilder<> Builder(getGlobalContext());
     std::string ErrMsg;
 
     Module          *pModule          = new Module("llvm-test module", getGlobalContext());
-    ExecutionEngine *pExecutionEngine = EngineBuilder(pModule).setErrorStr(&ErrMsg).create();
+    ExecutionEngine *pExecutionEngine = EngineBuilder(pModule).setUseMCJIT(true).setErrorStr(&ErrMsg).create();
     if (pExecutionEngine == nullptr) throw ErrMsg;
 
     std::vector<Type *> FunctionParameters;

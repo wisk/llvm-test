@@ -25,7 +25,7 @@ link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 add_definitions(-std=c++11)
 
-llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native)
+llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES mcjit native)
 
 
 add_executable(llvm-test_add llvm-test_add.cpp)

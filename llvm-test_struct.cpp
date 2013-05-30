@@ -14,7 +14,7 @@
 
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/Target/TargetMachine.h>
-#include "llvm/ExecutionEngine/JIT.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
 
 using namespace llvm;
 
@@ -28,12 +28,13 @@ int main(void)
   try
   {
     InitializeNativeTarget();
+    InitializeNativeTargetAsmPrinter();
     LLVMContext &rCtxt = getGlobalContext();
     IRBuilder<> Builder(rCtxt);
     std::string ErrStr;
 
     Module *pModule = new Module("llvm-test_struct", rCtxt);
-    ExecutionEngine *pExecutionEngine = EngineBuilder(pModule).setErrorStr(&ErrStr).create();
+    ExecutionEngine *pExecutionEngine = EngineBuilder(pModule).setUseMCJIT(true).setErrorStr(&ErrStr).create();
     if (pExecutionEngine == nullptr) throw ErrStr;
 
     DataLayout CurDataLayout(pModule);

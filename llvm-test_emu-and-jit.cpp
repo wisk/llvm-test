@@ -18,7 +18,7 @@
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Target/TargetMachine.h>
-#include "llvm/ExecutionEngine/JIT.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
 
 #include <stdint.h>
 
@@ -55,11 +55,12 @@ public:
   LlvmJitter(void) : m_Builder(getGlobalContext())
   {
     InitializeNativeTarget();
+    InitializeNativeTargetAsmPrinter();
     LLVMContext &rCtxt = getGlobalContext();
     std::string ErrStr;
 
     if (sm_pModule          == nullptr) sm_pModule          = new Module("llvm-test_emu-and-jit", rCtxt);
-    if (sm_pExecutionEngine == nullptr) sm_pExecutionEngine = EngineBuilder(sm_pModule).setErrorStr(&ErrStr).setUseMCJIT(true).create();
+    if (sm_pExecutionEngine == nullptr) sm_pExecutionEngine = EngineBuilder(sm_pModule).setUseMCJIT(true).setErrorStr(&ErrStr).create();
     if (sm_pExecutionEngine == nullptr) throw ErrStr;
     if (sm_pDataLayout      == nullptr) sm_pDataLayout      = new DataLayout(sm_pModule);
 
